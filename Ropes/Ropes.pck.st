@@ -1,6 +1,6 @@
-'From Cuis 6.0 [latest update: #5202] on 26 May 2022 at 12:50:42 pm'!
+'From Cuis 6.0 [latest update: #5753] on 5 May 2023 at 7:24:33 pm'!
 'Description Ropes: functional, immutable strings'!
-!provides: 'Ropes' 1 37!
+!provides: 'Ropes' 1 41!
 !requires: 'Goodies' 1 4 nil!
 !requires: 'Cuis-Base' 50 4621 nil!
 !requires: 'Compression' 1 nil nil!
@@ -530,11 +530,6 @@ isLiteral
 
 	^false   "NB: a String returns true"! !
 
-!Rope methodsFor: 'printing' stamp: 'KenD 2/22/2013 20:22'!
-print
-
-	Transcript show: self; newLine! !
-
 !Rope methodsFor: 'printing' stamp: 'KenD 3/14/2013 19:52'!
 printOn: aStream
 	"Look good in the inspector"
@@ -921,9 +916,9 @@ asCamelCase
 
 !Rope methodsFor: 'converting' stamp: 'KenD 2/22/2013 21:12'!
 asCharacter
-	"Answer the receiver's first character, or '•' if none.  Idiosyncratic, provisional."
+	"Answer the receiver's first character, or '¬•' if none.  Idiosyncratic, provisional."
 
-	^ self size > 0 ifTrue: [self first] ifFalse: [$•]! !
+	^ self size > 0 ifTrue: [self first] ifFalse: [$¬•]! !
 
 !Rope methodsFor: 'converting' stamp: 'KenD 2/22/2013 21:11'!
 asDate
@@ -1137,7 +1132,7 @@ they were in text."
 								rest = 'lt' ifTrue: [out nextPut: $<].
 								rest = 'gt' ifTrue: [out nextPut: $>].
 								rest = 'amp' ifTrue: [out nextPut: $&].
-								rest = 'deg' ifTrue: [out nextPut: $°].
+								rest = 'deg' ifTrue: [out nextPut: $¬°].
 								rest = 'quot' ifTrue: [out nextPut: $"].
 								rest first = $# ifTrue: [ out nextPut: (Character value: rest asInteger) ].
 								did = out position ifTrue: [
@@ -1152,7 +1147,7 @@ they were in text."
 asUnaccented
 	"
 	'Hello' asRope asUnaccented
-	'·ÈÓÙÛ¸' asRope asUnaccented
+	'√°√©√Æ√¥√≥√º' asRope asUnaccented
 	"
 	^self hasAccents
 		ifFalse: [ self ]
@@ -3299,14 +3294,14 @@ depth
 	
 	^ 0! !
 
-!LazyFileRope methodsFor: 'accessing' stamp: 'KenD 4/22/2013 19:35'!
+!LazyFileRope methodsFor: 'accessing' stamp: 'DF 5/4/2023 22:42:29'!
 size
 	"Answer the niumber of Characters in me"
 
 	(totalCount isNil) ifFalse: [ ^totalCount ].
 	(fileStream closed) 
 		ifTrue: [  ^totalCount := soFar size ]
-		ifFalse: [ ^totalCount := fileStream size ]
+		ifFalse: [ ^totalCount := fileStream countCodePoints ]
 ! !
 
 !LazyFileRope methodsFor: 'enumerating' stamp: 'KenD 4/22/2013 19:36'!
@@ -3343,7 +3338,7 @@ copyFrom: start to: stop
 	
 	^ soFar copyFrom: start to: stop! !
 
-!LazyFileRope methodsFor: 'private' stamp: 'KenD 4/22/2013 19:48'!
+!LazyFileRope methodsFor: 'private' stamp: 'DF 5/4/2023 12:29:09'!
 extendForIndex: anIndex
 	"If (anIndex > soFar size),  Extend soFar to include anIndex"
 "
@@ -3351,13 +3346,16 @@ Transcript log: 'LazyFileRope>>extendForIndex: ',
 				(anIndex  asString), '  ', (soFar size) asString ,
   				String newLineString.
 "			
-	(anIndex > (soFar size)) ifTrue: [ | delta |
-		delta := anIndex - (soFar size).
-		(delta < ChunkSize)
-			ifTrue: [ soFar := soFar , (fileStream next: ChunkSize) asRope ]
-			ifFalse: [ soFar := soFar , (fileStream next: (delta + 100)) asRope ].
-		self fileCheck.
-	]! !
+	[anIndex > (soFar size) and:[ fileStream atEnd not ] ] 
+		whileTrue:[
+			|delta|
+			
+			delta := anIndex - (soFar size).
+			soFar := ConcatRope withLeft: soFar andRight: (fileStream next: (ChunkSize min: delta)) asRope			].
+		
+	self fileCheck.
+	
+	! !
 
 !LazyFileRope methodsFor: 'private' stamp: 'KenD 4/22/2013 19:21'!
 fileCheck
@@ -3423,19 +3421,14 @@ soFar
 	"Debug only"
 	^soFar! !
 
-!LazyFileRope methodsFor: 'initialize-release' stamp: 'KenD 11/1/2015 15:55'!
+!LazyFileRope methodsFor: 'initialize-release' stamp: 'DF 5/4/2023 22:49:47'!
 initializeFromFile: aFmFileEntry "entry exists and is a text file"
 	
-	| tmpFileName |
 	super initialize.
-	"As Ropes are immutable, copy the file"
-	tmpFileName := aFmFileEntry parent pathName, '/', self genTempFileName.
-	aFmFileEntry copyTo: tmpFileName.
 	
-	"Open a FileStream on the copy"
-	fileName := tmpFileName.
+	fileName := aFmFileEntry name.
 	totalCount := nil.
-	fileStream := StandardFileStream new open: tmpFileName forWrite: false.
+	fileStream := aFmFileEntry readStream.
 	soFar := (fileStream next: ChunkSize) asRope..
 	
 	^self
@@ -4359,8 +4352,8 @@ testCaseConversion
 	"
 	self new testCaseConversion
 	"
-	self assert: ('aÒo ComÈ tom· CamiÛn' asRope asLowercase) = 'aÒo comÈ tom· camiÛn' asRope.
-	self assert: ('aÒo ComÈ tom· CamiÛn' asRope asUppercase) = 'A—O COM… TOM¡ CAMI”N' asRope! !
+	self assert: ('a√±o Com√© tom√° Cami√≥n' asRope asLowercase) = 'a√±o com√© tom√° cami√≥n' asRope.
+	self assert: ('a√±o Com√© tom√° Cami√≥n' asRope asUppercase) = 'A√ëO COM√â TOM√Å CAMI√ìN' asRope! !
 
 !RopeTest methodsFor: 'test - converting' stamp: 'KenD 2/23/2013 17:04'!
 testSubStrings
@@ -4725,6 +4718,21 @@ uppercasingTable
 
 	^UppercasingTable ! !
 
+!UnicodeString methodsFor: '*ropes' stamp: 'DF 5/4/2023 11:43:56'!
+appendToRope: aRope
+
+	^ ConcatRope concatenate: aRope with: self asRope! !
+
+!UnicodeString methodsFor: '*ropes' stamp: 'DF 5/4/2023 11:43:45'!
+asRope
+
+	^FlatRope fromString: self! !
+
+!UnicodeString methodsFor: '*ropes' stamp: 'DF 5/4/2023 11:44:08'!
+asTextRope
+
+	^ self asRope asText! !
+
 !Array methodsFor: '*ropes' stamp: 'KenD 2/23/2013 20:19'!
 asRope
 	"Elements must be characters. Answer a rope"
@@ -4747,6 +4755,34 @@ asTextRope
 	"Answer a Text with my string as a Rope. Keep runs as well"
 
 	^ Text string: (self string asRope) runs:(self runs copy)! !
+
+!UniFileStream methodsFor: '*ropes' stamp: 'DF 5/4/2023 22:37:27'!
+countCodePoints
+
+	"Answer the total number of code points in the file."
+
+	| savePos answer |
+	
+	savePos := self position.
+	self position: 0.
+	answer := readAdaptor countToEnd.
+	self position: savePos.
+	^answer! !
+
+!UnicodeReadAdaptor methodsFor: '*ropes' stamp: 'DF 5/4/2023 22:32:26'!
+countToEnd
+	"Answer the number of Unicode code points from the current position up to the end of the stream."
+
+	| codePointCount |
+	
+	codePointCount := 0.
+	
+	[ stream atEnd ] whileFalse: [
+		stream nextUtf8BytesAndCodePointInto: [ :byte1 :byte2 :byte3 :byte4 | 
+					codePointCount := codePointCount + 1 ]
+			into: nil ].
+
+	^codePointCount.! !
 
 !FileListWindow class methodsFor: '*ropes' stamp: 'KenD 5/31/2016 16:32'!
 openRopeFileList
