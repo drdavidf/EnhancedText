@@ -1,6 +1,6 @@
-'From Cuis 6.0 [latest update: #5753] on 5 May 2023 at 7:24:33 pm'!
+'From Cuis 6.0 [latest update: #5772] on 6 May 2023 at 10:47:07 pm'!
 'Description Ropes: functional, immutable strings'!
-!provides: 'Ropes' 1 41!
+!provides: 'Ropes' 1 42!
 !requires: 'Goodies' 1 4 nil!
 !requires: 'Cuis-Base' 50 4621 nil!
 !requires: 'Compression' 1 nil nil!
@@ -3368,14 +3368,13 @@ Transcript log: 'LazyFileRope>>fileCheck  closed? >> ',
 	((fileStream closed not) and: [fileStream atEnd])
 		 ifTrue: [ self fileCleanup ]! !
 
-!LazyFileRope methodsFor: 'private' stamp: 'KenD 11/1/2015 15:59'!
+!LazyFileRope methodsFor: 'private' stamp: 'DF 5/6/2023 22:29:32'!
 fileCleanup
-	"Close and remove tempFile"
 
-	 | fn |
-	fn := fileStream name.
+	"Close  the File"
+
 	fileStream close.
-	fn asFileEntry delete.! !
+! !
 
 !LazyFileRope methodsFor: 'private' stamp: 'KenD 4/22/2013 19:21'!
 finalize
